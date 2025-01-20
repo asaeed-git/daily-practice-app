@@ -1,12 +1,14 @@
 import streamlit as st
 import PyPDF2
 import os
+import json
+from datetime import datetime, timedelta
 
-# Configuration (Edit these paths and values as needed)
-PDF_FILE_PATH = "GATBook.pdf"  # Full path to the PDF file
+# Configuration
+PDF_FILE_PATH = "your_book.pdf"  # Full path to the PDF file
 OUTPUT_DIR = "Daily_Practice"   # Directory to save daily PDFs
-PAGES_PER_DAY = 5               # Number of pages to extract daily
 PROGRESS_FILE = "progress.txt"  # File to track progress
+METADATA_FILE = "metadata.json" # File to track file timestamps
 
 # Ensure output directory exists
 if not os.path.exists(OUTPUT_DIR):
@@ -40,19 +42,57 @@ def extract_pages(start_page, end_page, output_path):
         with open(output_path, "wb") as output_pdf:
             writer.write(output_pdf)
 
+def load_metadata():
+    """Load metadata from the JSON file."""
+    if os.path.exists(METADATA_FILE):
+        with open(METADATA_FILE, "r") as file:
+            return json.load(file)
+    return {}
+
+def save_metadata(metadata):
+    """Save metadata to the JSON file."""
+    with open(METADATA_FILE, "w") as file:
+        json.dump(metadata, file, indent=4)
+
+def delete_expired_files(metadata):
+    """Delete files older than 24 hours and update metadata."""
+    current_time = datetime.now()
+    updated_metadata = {}
+    for file_path, timestamp in metadata.items():
+        file_time = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        if current_time - file_time > timedelta(hours=24):
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        else:
+            updated_metadata[file_path] = timestamp
+    return updated_metadata
+
 def main():
     st.title("Automated Daily Practice PDF Generator")
-    st.write("This app automatically generates a set of practice pages every day.")
+    st.write("This app generates a set of practice pages daily, allows you to adjust the number of pages, and auto-deletes files after 24 hours.")
+
+    # Page selection slider
+    st.sidebar.header("Settings")
+    pages_per_day = st.sidebar.slider("Number of pages to practice daily", min_value=1, max_value=20, value=5)
+
+    # Load and clean up metadata
+    metadata = load_metadata()
+    metadata = delete_expired_files(metadata)
+    save_metadata(metadata)
 
     # Get the last page worked on
     last_page = get_last_page()
     start_page = last_page + 1
-    end_page = start_page + PAGES_PER_DAY
+    end_page = start_page + pages_per_day
 
     # Generate the next practice set
     output_path = f"{OUTPUT_DIR}/Practice_{start_page}_to_{end_page - 1}.pdf"
     extract_pages(start_page - 1, end_page - 1, output_path)
     save_last_page(end_page - 1)
+
+    # Save file creation time in metadata
+    metadata[output_path] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_metadata(metadata)
 
     # Display success message and download link
     st.success(f"Today's practice saved as: {output_path}")
