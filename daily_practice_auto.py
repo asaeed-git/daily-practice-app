@@ -1,16 +1,15 @@
 import streamlit as st
 import PyPDF2
 import os
-import time
 import json
 from datetime import datetime, timedelta
 
 # Configuration
 PDF_FILE_PATH = "GATBook.pdf"  # Full path to the PDF file
-OUTPUT_DIR = "Daily_Practice"   # Directory to save daily PDFs
-PAGES_PER_DAY = 5               # Number of pages to extract daily
-PROGRESS_FILE = "progress.txt"  # File to track progress
-METADATA_FILE = "metadata.json" # File to track file timestamps
+OUTPUT_DIR = "Daily_Practice"    # Directory to save daily PDFs
+PAGES_PER_DAY = 5                # Number of pages to extract daily
+PROGRESS_FILE = "progress.txt"   # File to track progress
+METADATA_FILE = "metadata.json"  # File to track file timestamps
 
 # Ensure output directory exists
 if not os.path.exists(OUTPUT_DIR):
@@ -87,24 +86,23 @@ def main():
         save_last_page(new_last_page)
         st.success(f"Progress updated to page: {new_last_page}")
     
-    # Get the last page worked on and generate new pages
-    start_page = new_last_page
-    end_page = start_page + PAGES_PER_DAY
+    # Display file creation time and download button
+    output_path = f"{OUTPUT_DIR}/Practice_{new_last_page}_to_{new_last_page + PAGES_PER_DAY - 1}.pdf"
+    st.write(f"Pages: {new_last_page} to {new_last_page + PAGES_PER_DAY - 1}")
 
-    # Generate the next practice set
-    output_path = f"{OUTPUT_DIR}/Practice_{start_page}_to_{end_page - 1}.pdf"
-    extract_pages(start_page - 1, end_page - 1, output_path)
-    save_last_page(end_page - 1)
+    # Button to trigger PDF extraction
+    if st.button("Generate and Download Today's Practice PDF"):
+        # Extract pages and generate PDF only when the button is clicked
+        extract_pages(new_last_page - 1, new_last_page + PAGES_PER_DAY - 1, output_path)
+        save_last_page(new_last_page + PAGES_PER_DAY - 1)
 
-    # Save file creation time in metadata
-    metadata[output_path] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_metadata(metadata)
+        # Save file creation time in metadata
+        metadata[output_path] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        save_metadata(metadata)
 
-    # Display success message and download link
-    st.success(f"Today's practice saved as: {output_path}")
-    st.write(f"Pages: {start_page} to {end_page - 1}")
-    with open(output_path, "rb") as f:
-        st.download_button("Download Today's Practice PDF", f, file_name=f"Practice_{start_page}_to_{end_page - 1}.pdf")
+        # Provide download button
+        with open(output_path, "rb") as f:
+            st.download_button("Download Today's Practice PDF", f, file_name=f"Practice_{new_last_page}_to_{new_last_page + PAGES_PER_DAY - 1}.pdf")
 
     # Modify Progress Manually
     st.subheader("Modify Progress Manually")
