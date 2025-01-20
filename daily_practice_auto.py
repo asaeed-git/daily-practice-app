@@ -1,12 +1,14 @@
 import streamlit as st
 import PyPDF2
 import os
+import time
 import json
 from datetime import datetime, timedelta
 
 # Configuration
-PDF_FILE_PATH = "your_book.pdf"  # Full path to the PDF file
+PDF_FILE_PATH = "GATBook.pdf"  # Full path to the PDF file
 OUTPUT_DIR = "Daily_Practice"   # Directory to save daily PDFs
+PAGES_PER_DAY = 5               # Number of pages to extract daily
 PROGRESS_FILE = "progress.txt"  # File to track progress
 METADATA_FILE = "metadata.json" # File to track file timestamps
 
@@ -69,21 +71,25 @@ def delete_expired_files(metadata):
 
 def main():
     st.title("Automated Daily Practice PDF Generator")
-    st.write("This app generates a set of practice pages daily, allows you to adjust the number of pages, and auto-deletes files after 24 hours.")
-
-    # Page selection slider
-    st.sidebar.header("Settings")
-    pages_per_day = st.sidebar.slider("Number of pages to practice daily", min_value=1, max_value=20, value=5)
+    st.write("This app generates a set of practice pages daily and auto-deletes files after 24 hours.")
 
     # Load and clean up metadata
     metadata = load_metadata()
     metadata = delete_expired_files(metadata)
     save_metadata(metadata)
 
-    # Get the last page worked on
-    last_page = get_last_page()
-    start_page = last_page + 1
-    end_page = start_page + pages_per_day
+    # Page Number Adjustment Section
+    st.subheader("Page Number Adjustment")
+    current_last_page = get_last_page()
+    new_last_page = st.number_input("Enter the page number to start from", min_value=1, value=current_last_page, step=1)
+    
+    if new_last_page != current_last_page:
+        save_last_page(new_last_page)
+        st.success(f"Progress updated to page: {new_last_page}")
+    
+    # Get the last page worked on and generate new pages
+    start_page = new_last_page
+    end_page = start_page + PAGES_PER_DAY
 
     # Generate the next practice set
     output_path = f"{OUTPUT_DIR}/Practice_{start_page}_to_{end_page - 1}.pdf"
@@ -99,6 +105,13 @@ def main():
     st.write(f"Pages: {start_page} to {end_page - 1}")
     with open(output_path, "rb") as f:
         st.download_button("Download Today's Practice PDF", f, file_name=f"Practice_{start_page}_to_{end_page - 1}.pdf")
+
+    # Modify Progress Manually
+    st.subheader("Modify Progress Manually")
+    manual_page = st.number_input("Enter a new page number to set manually", min_value=1)
+    if st.button("Set Manual Progress"):
+        save_last_page(manual_page)
+        st.success(f"Progress manually set to page: {manual_page}")
 
 if __name__ == "__main__":
     main()
